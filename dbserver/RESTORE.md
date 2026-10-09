@@ -88,3 +88,7 @@ Record the date, who ran it, and the timings.
 2. Follow "Restore" above, using `--type=time` if you know when the problem started, otherwise restore to the latest point.
 3. Point the app server's `DB_HOST` at the new server's private IP, and re-run `install-db.sh` for the app database user and firewall rules if needed.
 4. Run `install-backup.sh` again on the new server **using the same bucket and the same passphrase** so the existing repository stays usable.
+
+## Choosing a restore time
+
+PostgreSQL works out times from commit records in the WAL. A `--target` that is later than the last commit in the archive fails with "recovery ended before configured recovery target was reached". For a real recovery, pick a time at which the database was still busy, or leave out `--type`/`--target` to restore to the latest archived point.
