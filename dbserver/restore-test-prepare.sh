@@ -38,9 +38,12 @@ sleep 5
 
 info "Deleting the rows..."
 pg -d restore_test -c "DELETE FROM marker"
-sleep 1
-DELETED=$(ts)   # taken after the commit and with microseconds, so a restore to it is after the delete
+DELETED=$(ts)   # taken after the commit, with microseconds: a restore to it is after the delete
 echo "  Rows deleted at $DELETED"
+
+# PostgreSQL finds the time of a point from commit records, so a restore target
+# only works if a later commit exists in the archive. Write a harmless one.
+pg -d restore_test -c "CREATE TABLE IF NOT EXISTS heartbeat (t timestamptz); INSERT INTO heartbeat VALUES (now())"
 
 info "Forcing the last changes into the bucket..."
 pg -c "SELECT pg_switch_wal()" >/dev/null
