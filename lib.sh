@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Shared helpers for webadmin. Sourced by webadmin.sh - not run directly.
+# Shared helpers for the admin scripts. Sourced by them - not run directly.
 #
 # Layout
 #   /etc/webaccounts/<name>.env      account metadata (source of truth)
@@ -31,6 +31,13 @@ pause() { read -rp "Press Enter to continue..." _; }
 valid_name()   { [[ $1 =~ ^[a-z][a-z0-9_-]{1,30}$ ]]; }
 valid_domain() { [[ $1 =~ ^([a-z0-9]([a-z0-9-]*[a-z0-9])?\.)+[a-z]{2,}$ ]]; }
 valid_size()   { [[ $1 =~ ^[0-9]+[mMkK]$ ]]; }
+valid_dbname() { [[ $1 =~ ^[a-z][a-z0-9_]{0,30}$ ]]; }
+valid_ipv4() {
+    local o
+    [[ $1 =~ ^[0-9]{1,3}(\.[0-9]{1,3}){3}$ ]] || return 1
+    local IFS=.
+    for o in $1; do ((10#$o <= 255)) || return 1; done
+}
 
 account_exists() { [[ -f $META_DIR/$1.env ]]; }
 
@@ -241,6 +248,25 @@ issue_cert() {
     certbot certonly --webroot -w "$ACME_ROOT" --cert-name "$ACCOUNT" \
         "${args[@]}" --non-interactive --agree-tos --expand \
         -m "$CERTBOT_EMAIL"
+}
+
+# ------------------------------------------------------------------- server
+# 24 random letters and digits (safe to put inside SQL quotes).
+random_password() { LC_ALL=C tr -dc 'A-Za-z0-9' </dev/urandom | head -c 24; }
+
+# Create a swap file of size $1 (default 2G) if the server has no swap yet.
+ensure_swap() {
+    local size=${1:-2G}
+    if [[ -n $(swapon --show --noheadings) ]]; then
+        info "Swap already active, skipping."
+        return 0
+    fi
+    info "Creating $size swap file..."
+    fallocate -l "$size" /swapfile
+    chmod 600 /swapfile
+    mkswap /swapfile
+    swapon /swapfile
+    grep -q '^/swapfile' /etc/fstab || echo '/swapfile none swap sw 0 0' >> /etc/fstab
 }
 
 # ------------------------------------------------------------------- display

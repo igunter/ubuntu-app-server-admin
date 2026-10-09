@@ -1,6 +1,42 @@
-# ubuntu-app-server-admin
+# ubuntu-server-admin
 
-Menu-driven scripts for managing nginx web accounts on an Ubuntu server over SSH (PuTTY, Terminal, etc).
+Scripts for setting up and managing Ubuntu servers over SSH (PuTTY, Terminal, etc), all from this one repo:
+
+- **App server**: nginx, PHP and a menu-driven web account manager.
+- **DB server**: MySQL, PostgreSQL and/or MariaDB, locked down to the app server.
+
+## Setting up a new server
+
+Connect to the new server in a terminal window and run:
+
+```bash
+sudo apt install -y git
+sudo git clone https://github.com/igunter/ubuntu-server-admin.git /ubuntu-server-admin
+cd /ubuntu-server-admin
+sudo bash setup.sh
+```
+
+`setup.sh` asks what the server is for:
+
+```
+=========== Server Setup ===========
+  1  App server   (nginx, PHP, Composer, web account manager)
+  2  DB server    (MySQL, PostgreSQL and/or MariaDB)
+  x  Exit
+```
+
+| Choice | What it does |
+| --- | --- |
+| App server | Runs `install.sh` (nginx, certbot, the shared folders and the "Site Unavailable" page), then offers the PHP stack (`appserver/install-php.sh`) and the "Hello" holding page (`appserver/install-holding.sh`), and finally starts the web account manager. |
+| DB server | Runs `dbserver/install-db.sh`. You tick which engines to install (MySQL, PostgreSQL, MariaDB; MySQL and MariaDB can't share a server) and give the app server's private IP, and it creates a database and a user that can only connect from that IP. The generated passwords are shown once. |
+
+Every script is safe to run again, and any of them can be run on its own, for example `sudo bash install.sh`.
+
+A step-by-step guide to a two-server Laravel setup on Lightsail is in [`appserver/README.md`](appserver/README.md).
+
+## Web Account Manager
+
+Menu-driven management of nginx web accounts on the App server.
 
 ```
 =========== Web Account Manager ===========
@@ -14,30 +50,22 @@ Menu-driven scripts for managing nginx web accounts on an Ubuntu server over SSH
   x  Exit
 ```
 
-## How to Run the Script
-
-Connect to your server in a terminal window (PuTTY, Terminal, etc) and run the following command.
-
-### First time
-
-If this is the first time you are running the script, clone it, run the one-off setup, then start the manager:
+Start it with:
 
 ```bash
-sudo git clone https://github.com/igunter/ubuntu-app-server-admin.git /ubuntu-app-server-admin && cd /ubuntu-app-server-admin && sudo bash install.sh && sudo bash webadmin.sh
+cd /ubuntu-server-admin && sudo bash webadmin.sh
 ```
 
-`install.sh` only needs to be run once. It installs nginx and certbot, creates the shared folders and writes the "Site Unavailable" page shown for disabled accounts. It is safe to run again.
-
-### Every time after that
+### Updating the scripts
 
 ```bash
-cd /ubuntu-app-server-admin && sudo bash webadmin.sh
+cd /ubuntu-server-admin && sudo git pull && sudo bash webadmin.sh
 ```
 
-### Updating the script
+A server cloned under the old repo name (`/ubuntu-app-server-admin`) keeps working, because GitHub redirects the old name. To switch it to the new one:
 
 ```bash
-cd /ubuntu-app-server-admin && sudo git pull && sudo bash webadmin.sh
+cd /ubuntu-app-server-admin && sudo git remote set-url origin https://github.com/igunter/ubuntu-server-admin.git
 ```
 
 ## What the options do
@@ -75,6 +103,6 @@ cd /ubuntu-app-server-admin && sudo git pull && sudo bash webadmin.sh
 - Ubuntu server with root/sudo access
 - Ports 80 and 443 open
 
-## PHP / Laravel servers
+## PHP / Laravel and database servers
 
-A full step-by-step guide to a two-server Laravel setup on Lightsail (AppServer + DBServer, MySQL and/or PostgreSQL, nginx, HTTPS, scheduler, queues, backups, deploys) is in [`appserver/README.md`](appserver/README.md). The scripts that install the PHP stack (PHP-FPM, Composer, Supervisor, swap) and a holding page live in the same folder.
+A full step-by-step guide to a two-server Laravel setup on Lightsail (App server + DB server, nginx, HTTPS, scheduler, queues, backups, deploys) is in [`appserver/README.md`](appserver/README.md). The PHP stack and holding page scripts are in [`appserver/`](appserver/) and the database installer is in [`dbserver/`](dbserver/).

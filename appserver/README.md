@@ -8,12 +8,15 @@ Internet ──80/443──> AppServer (nginx + PHP-FPM + Laravel)
                          └── private IP, 3306 / 5432 ──> DBServer (MySQL and/or PostgreSQL)
 ```
 
-The AppServer is set up with the scripts in this folder. The DBServer is set up with the commands in section 3.
+Both servers are set up from the one repo. Clone it on each server and run `sudo bash setup.sh`, which asks whether the server is an **App server** or a **DB server**.
 
 | Script | What it does |
 | --- | --- |
-| `install-php.sh` | Installs PHP-FPM with the extensions Laravel needs (MySQL and PostgreSQL drivers included), Composer, Supervisor, git, unzip and a swap file. |
-| `install-holding.sh` | Serves a plain "Hello" page for the server's bare IP address and any host name that isn't an account. |
+| `setup.sh` | Asks App or DB server, then runs the right installers below. |
+| `install.sh` | App server: nginx, certbot, shared folders, the "Site Unavailable" page. |
+| `appserver/install-php.sh` | App server: PHP-FPM with the extensions Laravel needs (MySQL and PostgreSQL drivers included), Composer, Supervisor, git, unzip and a swap file. |
+| `appserver/install-holding.sh` | App server: a plain "Hello" page for the server's bare IP address and any host name that isn't an account. |
+| `dbserver/install-db.sh` | DB server: tick MySQL, PostgreSQL and/or MariaDB, then it installs them, binds them to the private IP, and creates a database and user locked to the app server. |
 
 Throughout this guide, replace `myapp` with your app folder name, `yourdomain.com` with your domain, and `APP_PRIVATE_IP` / `DB_PRIVATE_IP` with the private IPs shown on each instance's **Networking** tab (they look like `172.26.x.x`).
 
@@ -51,12 +54,18 @@ Instances in the same account and region can talk to each other over their priva
 
 SSH in as `ubuntu` (PuTTY, the Lightsail browser terminal, or FileZilla over SFTP on port 22 using your key file).
 
-### 2.1 Run the setup scripts
+### 2.1 Run the setup script
 
 ```bash
 sudo apt install -y git
-sudo git clone https://github.com/igunter/ubuntu-app-server-admin.git /ubuntu-app-server-admin
-cd /ubuntu-app-server-admin
+sudo git clone https://github.com/igunter/ubuntu-server-admin.git /ubuntu-server-admin
+cd /ubuntu-server-admin
+sudo bash setup.sh
+```
+
+Choose **1 App server**. It installs nginx and certbot, then asks whether to install the PHP stack (answer yes for Laravel), whether to install the "Hello" holding page, and whether to start the web account manager. To run the steps one at a time instead:
+
+```bash
 sudo bash install.sh                      # nginx + certbot, shared folders
 sudo bash appserver/install-php.sh        # PHP 8.3 FPM, Composer, Supervisor, swap
 sudo bash appserver/install-holding.sh    # optional "Hello" page on the server IP
@@ -88,7 +97,7 @@ echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
 Start the manager and create the account:
 
 ```bash
-sudo bash /ubuntu-app-server-admin/webadmin.sh
+sudo bash /ubuntu-server-admin/webadmin.sh
 ```
 
 Choose **2 Create Account**: account name `myapp`, your domain, `www` yes, PHP **y**. This creates `/var/www/myapp/public` with a "Coming Soon" page, and an nginx conf whose document root is that `public` folder. For PHP accounts nginx sends unknown paths to `index.php`, which is what Laravel's routing needs.
@@ -180,9 +189,37 @@ If the queue driver is `database`, start the worker only after step 4.
 
 ## 3. DBServer
 
-SSH in to the DBServer. You can install MySQL, PostgreSQL, or both. They use different ports (3306 / 5432) and don't conflict.
+SSH in to the DBServer and clone the repo as in section 2.1:
 
-### 3.1 Swap and updates
+```bash
+sudo apt install -y git
+sudo git clone https://github.com/igunter/ubuntu-server-admin.git /ubuntu-server-admin
+cd /ubuntu-server-admin
+sudo bash setup.sh
+```
+
+Choose **2 DB server**. (You can also run `sudo bash dbserver/install-db.sh` directly.) It asks:
+
+1. **Which database server(s) to install.** Type a number to tick or untick MySQL, PostgreSQL or MariaDB, then press Enter. Tick as many as you like, with one exception: MySQL and MariaDB can't share a server (same packages, same port 3306), so only one of those two can be ticked. PostgreSQL goes alongside either.
+2. **This server's private IP.** Detected automatically; press Enter to accept it.
+3. **The AppServer's private IP.** The database user is locked to this address. Leave it blank to install the engines only.
+4. **Database name and user.** Both default to `app`.
+
+It then installs the engines, makes them listen on the private IP only, sizes the memory settings to the server's RAM (about 193 MB buffer pool on a 1 GB server), adds swap, and creates the database and user. At the end it prints a ready-made `.env` block for each engine with a generated password. The passwords are only shown once, so copy them straight away. If you tick more than one engine, use the 2 GB plan.
+
+It is safe to run again: databases are kept, and an existing user's password is only reset if you answer yes.
+
+To skip the questions, pass the answers as environment variables:
+
+```bash
+sudo ENGINES="mysql postgresql" DB_IP=172.26.0.10 APP_IP=172.26.0.20 \
+     DB_NAME=myapp DB_USER=myapp bash dbserver/install-db.sh
+```
+
+<details>
+<summary>The same thing as plain commands (no script)</summary>
+
+**Swap and updates**
 
 ```bash
 sudo apt update && sudo apt upgrade -y
@@ -191,21 +228,17 @@ sudo mkswap /swapfile && sudo swapon /swapfile
 echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
 ```
 
-### 3.2 MySQL
-
-```bash
-sudo apt install -y mysql-server
-sudo mysql_secure_installation
-```
-
-Edit `/etc/mysql/mysql.conf.d/mysqld.cnf` so MySQL listens on the private IP only, with settings sized for 1 GB RAM:
+**MySQL** (`sudo apt install -y mysql-server`). Add to `/etc/mysql/mysql.conf.d/99-dbserver.cnf`:
 
 ```ini
+[mysqld]
 bind-address = DB_PRIVATE_IP
 innodb_buffer_pool_size = 192M
 performance_schema = OFF
 max_connections = 50
 ```
+
+**MariaDB** (`sudo apt install -y mariadb-server`, instead of MySQL). Same settings, in `/etc/mysql/mariadb.conf.d/99-dbserver.cnf`, and the service is `mariadb`.
 
 Create the database and an app user that can only connect from the AppServer (`sudo mysql`):
 
@@ -215,13 +248,7 @@ CREATE USER 'myapp'@'APP_PRIVATE_IP' IDENTIFIED BY 'a-strong-password';
 GRANT ALL PRIVILEGES ON myapp.* TO 'myapp'@'APP_PRIVATE_IP';
 ```
 
-### 3.3 PostgreSQL
-
-```bash
-sudo apt install -y postgresql
-```
-
-In `/etc/postgresql/16/main/postgresql.conf` (check the version number in the path):
+**PostgreSQL** (`sudo apt install -y postgresql`). In `/etc/postgresql/16/main/postgresql.conf` (check the version number in the path):
 
 ```
 listen_addresses = 'localhost,DB_PRIVATE_IP'
@@ -242,14 +269,16 @@ CREATE USER myapp WITH PASSWORD 'a-strong-password';
 CREATE DATABASE myapp OWNER myapp;
 ```
 
-### 3.4 Restart and verify
+**Restart and verify**
 
 ```bash
-sudo systemctl restart mysql postgresql     # only the ones you installed
+sudo systemctl restart mysql postgresql     # only the ones you installed (mariadb for MariaDB)
 sudo ss -tlnp | grep -E '3306|5432'
 ```
 
-The listening address should be `DB_PRIVATE_IP` (plus localhost for PostgreSQL), never `0.0.0.0`.
+</details>
+
+The listening address should be `DB_PRIVATE_IP` (plus localhost for PostgreSQL), never `0.0.0.0`. The installer checks this for you and warns if a database is listening on every address.
 
 ---
 

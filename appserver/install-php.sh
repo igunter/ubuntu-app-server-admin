@@ -45,16 +45,7 @@ else
     info "Composer already installed, skipping."
 fi
 
-if [[ -z $(swapon --show --noheadings) ]]; then
-    info "Creating $SWAP_SIZE swap file..."
-    fallocate -l "$SWAP_SIZE" /swapfile
-    chmod 600 /swapfile
-    mkswap /swapfile
-    swapon /swapfile
-    grep -q '^/swapfile' /etc/fstab || echo '/swapfile none swap sw 0 0' >> /etc/fstab
-else
-    info "Swap already active, skipping."
-fi
+ensure_swap "$SWAP_SIZE"
 
 ok "PHP stack installed: $(php -v | head -n1)"
 info "PHP accounts can now be switched on from webadmin.sh. See appserver/README.md for Laravel notes."
