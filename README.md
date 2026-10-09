@@ -74,4 +74,4 @@ cd /ubuntu-app-server-admin && sudo git pull && sudo bash webadmin.sh
 
 ## PHP / Laravel servers
 
-Scripts for installing the PHP stack (PHP-FPM, Composer, Supervisor, swap) and a holding page are in [`appserver/`](appserver/README.md).
+A full step-by-step guide to a two-server Laravel setup on Lightsail (AppServer + DBServer, MySQL and/or PostgreSQL, nginx, HTTPS, scheduler, queues, backups, deploys) is in [`appserver/README.md`](appserver/README.md). The scripts that install the PHP stack (PHP-FPM, Composer, Supervisor, swap) and a holding page live in the same folder.
