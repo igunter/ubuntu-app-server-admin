@@ -71,3 +71,7 @@ cd /ubuntu-app-server-admin && sudo git pull && sudo bash webadmin.sh
 
 - Ubuntu server with root/sudo access
 - Ports 80 and 443 open
+
+## PHP / Laravel servers
+
+A full step-by-step guide to a two-server Laravel setup on Lightsail (AppServer + DBServer, MySQL and/or PostgreSQL, nginx, HTTPS, scheduler, queues, backups, deploys) is in [`appserver/README.md`](appserver/README.md). The scripts that install the PHP stack (PHP-FPM, Composer, Supervisor, swap) and a holding page live in the same folder.
