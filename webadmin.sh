@@ -52,7 +52,7 @@ do_create() {
         warn "No php-fpm socket found; install php-fpm or PHP will not work."
     fi
 
-    local root=$WWW_ROOT/$name/public_html
+    local root=$WWW_ROOT/$name/public
     mkdir -p "$root"
     cat > "$root/index.html" <<'EOF'
 <!doctype html>
