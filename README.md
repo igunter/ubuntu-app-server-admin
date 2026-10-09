@@ -71,3 +71,7 @@ cd /ubuntu-app-server-admin && sudo git pull && sudo bash webadmin.sh
 
 - Ubuntu server with root/sudo access
 - Ports 80 and 443 open
+
+## PHP / Laravel servers
+
+Scripts for installing the PHP stack (PHP-FPM, Composer, Supervisor, swap) and a holding page are in [`appserver/`](appserver/README.md).
