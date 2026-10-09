@@ -15,7 +15,7 @@ DIR=$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)
 STANZA=${STANZA:-main}
 OUT=/var/tmp/restore-test.txt
 pg() { runuser -u postgres -- psql -v ON_ERROR_STOP=1 -Atq "$@"; }
-ts() { pg -c "SELECT to_char(now(), 'YYYY-MM-DD HH24:MI:SSOF')"; }
+ts() { pg -c "SELECT to_char(now(), 'YYYY-MM-DD HH24:MI:SS.USOF')"; }
 
 command -v pgbackrest >/dev/null || { err "pgBackRest is not installed. Run install-backup.sh first."; exit 1; }
 
@@ -38,7 +38,8 @@ sleep 5
 
 info "Deleting the rows..."
 pg -d restore_test -c "DELETE FROM marker"
-DELETED=$(ts)
+sleep 1
+DELETED=$(ts)   # taken after the commit and with microseconds, so a restore to it is after the delete
 echo "  Rows deleted at $DELETED"
 
 info "Forcing the last changes into the bucket..."
