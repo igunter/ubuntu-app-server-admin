@@ -54,9 +54,29 @@ do_create() {
 
     local root=$WWW_ROOT/$name/public_html
     mkdir -p "$root"
-    cat > "$root/index.html" <<EOF
-<!doctype html><meta charset="utf-8"><title>$domain</title>
-<h1>$domain</h1><p>Account <b>$name</b> is ready.</p>
+    cat > "$root/index.html" <<'EOF'
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Coming Soon</title>
+<style>
+  body { font-family: system-ui, sans-serif; background: #f4f5f7; color: #333;
+         display: flex; min-height: 100vh; margin: 0; align-items: center; justify-content: center; }
+  .box { background: #fff; padding: 2.5rem 3rem; border-radius: 8px; text-align: center;
+         box-shadow: 0 2px 12px rgba(0,0,0,.1); max-width: 28rem; }
+  h1 { margin-top: 0; }
+</style>
+</head>
+<body>
+  <div class="box">
+    <h1>Web Site Coming Soon</h1>
+    <p>We're working on something new. Please check back shortly.</p>
+  </div>
+</body>
+</html>
 EOF
     chown -R www-data:www-data "$WWW_ROOT/$name"
     chmod 755 "$WWW_ROOT/$name"
