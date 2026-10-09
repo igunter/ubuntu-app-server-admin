@@ -45,7 +45,7 @@ cd /ubuntu-app-server-admin && sudo git pull && sudo bash webadmin.sh
 | Option | Description |
 | --- | --- |
 | List Accounts | Shows every account with its status, SSL, PHP and domains. |
-| Create Account | Creates the web root, a placeholder `index.html` and the nginx conf. |
+| Create Account | Creates `/var/www/<name>/public` with a "Coming Soon" placeholder `index.html`, and the nginx conf. |
 | Edit Account | Change PHP on/off and max upload size, or delete the account (asks you to type the account name, and separately whether to delete the web files). |
 | Toggle Account Status | When **off**, the site returns HTTP 503 and shows a "Site Unavailable" page on both HTTP and HTTPS. |
 | Toggle SSL | Requests a Let's Encrypt certificate for all the account's domains and enables HTTPS with an HTTP redirect. Turning it off keeps the certificate. |
@@ -58,7 +58,7 @@ cd /ubuntu-app-server-admin && sudo git pull && sudo bash webadmin.sh
 | --- | --- |
 | Account settings (source of truth) | `/etc/webaccounts/<name>.env` |
 | Generated nginx conf | `/etc/nginx/sites-available/<name>.conf`, symlinked into `sites-enabled/` |
-| Web root | `/var/www/<name>/public_html` |
+| Web root | `/var/www/<name>/public` |
 | Disabled-site page | `/var/www/_disabled/index.html` |
 | Let's Encrypt challenges | `/var/www/_acme/` |
 
@@ -66,6 +66,9 @@ cd /ubuntu-app-server-admin && sudo git pull && sudo bash webadmin.sh
 - Every change is checked with `nginx -t` before nginx is reloaded. If nginx rejects it, the previous conf is restored.
 - For SSL, DNS for every domain on the account must already point at the server.
 - For PHP accounts, install PHP-FPM first: `sudo apt install php-fpm`.
+- The document root is the account's `public` folder, so a Laravel project can live in `/var/www/<name>` and use its own `public/` folder as is. nginx does not read `.htaccess` files.
+- PHP accounts send unknown paths to `index.php` (the front controller Laravel needs); accounts without PHP return 404.
+- Accounts created by older versions served `public_html`. It is renamed to `public` the next time that account's conf is rewritten (any change made from the menu), and an existing `public` folder is never overwritten.
 
 ## Requirements
 

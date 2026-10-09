@@ -6,7 +6,7 @@
 #   /etc/webaccounts/settings.env    global settings (certbot email)
 #   /etc/nginx/sites-available/<name>.conf   generated from metadata
 #   /etc/nginx/sites-enabled/<name>.conf     symlink to the above
-#   /var/www/<name>/public_html      document root
+#   /var/www/<name>/public           document root (Laravel's public/ folder fits here)
 #   /var/www/_disabled/              "account suspended" page
 #   /var/www/_acme/                  Let's Encrypt webroot challenges
 
@@ -102,7 +102,11 @@ cert_ready() { [[ -f /etc/letsencrypt/live/$ACCOUNT/fullchain.pem ]]; }
 
 # Location blocks shared by the http and https servers.
 emit_body() {
-    local root=$WWW_ROOT/$ACCOUNT/public_html
+    local root=$WWW_ROOT/$ACCOUNT/public
+    # PHP accounts fall back to index.php (front controller, as Laravel needs);
+    # static accounts return 404 for unknown paths.
+    local fallback='=404'
+    [[ $PHP == on ]] && fallback='/index.php?$query_string'
     if [[ $STATUS == off ]]; then
         cat <<EOF
     root $DISABLED_ROOT;
@@ -118,7 +122,7 @@ EOF
     client_max_body_size $MAX_UPLOAD;
 
     location / {
-        try_files \$uri \$uri/ =404;
+        try_files \$uri \$uri/ $fallback;
     }
 
     location ~ /\.(?!well-known) { deny all; }
@@ -183,10 +187,22 @@ render_conf() {
     echo "}"
 }
 
+# Older versions served /var/www/<name>/public_html. The document root is now
+# /var/www/<name>/public, so move an old folder across the first time the
+# account's conf is rewritten (never overwrites an existing public/).
+migrate_docroot() {
+    local base=$WWW_ROOT/$ACCOUNT
+    if [[ -d $base/public_html && ! -e $base/public ]]; then
+        mv "$base/public_html" "$base/public"
+        info "Moved $base/public_html to $base/public"
+    fi
+}
+
 # Write conf from current variables, enable it, test and reload nginx.
 # Rolls back to the previous conf if nginx rejects the result.
 apply_conf() {
     local avail=$NGINX_AVAIL/$ACCOUNT.conf backup=
+    migrate_docroot
     if [[ -f $avail ]]; then
         backup=$(mktemp); cp "$avail" "$backup"
     fi
@@ -238,5 +254,5 @@ show_account() {
     echo "  PHP     : $PHP"
     echo "  Upload  : $MAX_UPLOAD"
     echo "  Domains : $DOMAINS"
-    echo "  Web root: $WWW_ROOT/$ACCOUNT/public_html"
+    echo "  Web root: $WWW_ROOT/$ACCOUNT/public"
 }

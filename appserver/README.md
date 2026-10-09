@@ -83,16 +83,32 @@ echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
 
 </details>
 
-### 2.2 Put the code on the server
+### 2.2 Create the site
+
+Start the manager and create the account:
 
 ```bash
-sudo mkdir -p /var/www/myapp
+sudo bash /ubuntu-app-server-admin/webadmin.sh
+```
+
+Choose **2 Create Account**: account name `myapp`, your domain, `www` yes, PHP **y**. This creates `/var/www/myapp/public` with a "Coming Soon" page, and an nginx conf whose document root is that `public` folder. For PHP accounts nginx sends unknown paths to `index.php`, which is what Laravel's routing needs.
+
+Once DNS for the domain points at the AppServer, choose **5 Toggle SSL** to get a Let's Encrypt certificate and switch on HTTPS.
+
+If you turned PHP on before running `install-php.sh`, open **3 Edit Account** and save it again so the conf picks up the PHP-FPM socket.
+
+### 2.3 Put the code on the server
+
+The Laravel project goes in `/var/www/myapp` itself, so that its own `public/` folder is the document root. Remove the placeholder first, because `git clone` needs an empty folder, and take ownership because the manager owns new accounts as `www-data`:
+
+```bash
+sudo rm -rf /var/www/myapp/public          # only holds the Coming Soon page
 sudo chown $USER:www-data /var/www/myapp
 cd /var/www/myapp
 git clone YOUR_REPO_URL .
 ```
 
-For a private repo, create a deploy key with `ssh-keygen -t ed25519` and add the public key to the repo's deploy keys. Or upload the files with FileZilla into `/var/www/myapp`.
+For a private repo, create a deploy key with `ssh-keygen -t ed25519` and add the public key to the repo's deploy keys. If you upload with FileZilla instead, run the `chown` first and upload the project into `/var/www/myapp`.
 
 Then install and configure:
 
@@ -126,62 +142,11 @@ sudo chmod -R ug+rwx storage bootstrap/cache
 
 If the front end has a build step: `sudo apt install -y nodejs npm`, then `npm ci && npm run build`.
 
-### 2.3 nginx site for Laravel
+### 2.4 Check it works
 
-`webadmin.sh` generates confs that serve `public_html` and return 404 for unknown paths, which doesn't suit Laravel's `public/` folder and front-controller routing. Manual edits to those generated confs are overwritten, so create the Laravel site by hand, outside the manager, under its own file name:
+Browse to `https://yourdomain.com`. To test certificate renewal: `sudo certbot renew --dry-run`.
 
-```bash
-sudo nano /etc/nginx/sites-available/myapp-laravel.conf
-```
-
-```nginx
-server {
-    listen 80;
-    listen [::]:80;
-    server_name yourdomain.com www.yourdomain.com;
-    root /var/www/myapp/public;
-
-    index index.php;
-    charset utf-8;
-    client_max_body_size 20M;
-
-    add_header X-Frame-Options "SAMEORIGIN";
-    add_header X-Content-Type-Options "nosniff";
-
-    location / {
-        try_files $uri $uri/ /index.php?$query_string;
-    }
-
-    location ~ \.php$ {
-        fastcgi_pass unix:/run/php/php8.3-fpm.sock;
-        fastcgi_param SCRIPT_FILENAME $realpath_root$fastcgi_script_name;
-        include fastcgi_params;
-    }
-
-    location ~ /\.(?!well-known).* {
-        deny all;
-    }
-}
-```
-
-Check that the socket name matches your PHP version with `ls /run/php/`. Then enable it:
-
-```bash
-sudo ln -s /etc/nginx/sites-available/myapp-laravel.conf /etc/nginx/sites-enabled/
-sudo nginx -t && sudo systemctl reload nginx
-```
-
-Don't also create a `webadmin.sh` account for the same domain, or the two confs will clash.
-
-### 2.4 HTTPS
-
-DNS for the domain must already point at the AppServer.
-
-```bash
-sudo apt install -y python3-certbot-nginx
-sudo certbot --nginx -d yourdomain.com -d www.yourdomain.com
-sudo certbot renew --dry-run
-```
+Don't edit the generated conf in `/etc/nginx/sites-available/myapp.conf` by hand: the manager rewrites it whenever you change the account.
 
 ### 2.5 Scheduler and queue worker
 
@@ -348,9 +313,10 @@ php artisan queue:restart
 | Symptom | Likely cause |
 | --- | --- |
 | Page times out | Port 80/443 not open in the AppServer's Lightsail firewall. |
-| 502 Bad Gateway | PHP-FPM not running or wrong socket path. Check `sudo systemctl status php8.3-fpm` and `ls /run/php/`. |
+| 502 Bad Gateway | PHP-FPM not running or wrong socket path. Check `sudo systemctl status php8.3-fpm` and `ls /run/php/`. If PHP was switched on before `install-php.sh` ran, open Edit Account in `webadmin.sh` and save to regenerate the conf. |
 | 403 Forbidden | Permissions. Re-run the `chown` / `chmod` on `storage` and `bootstrap/cache`. |
-| 404 on every route | `root` doesn't end in `/public`, or `try_files` was mistyped. |
+| Coming Soon page still showing, or 404 on every route | The Laravel project isn't in `/var/www/<account>` yet (its `public/` folder is the document root), or PHP is off for the account. |
+| Permission denied when uploading or cloning | The manager owns new accounts as `www-data`. Run `sudo chown -R $USER:www-data /var/www/<account>`. |
 | 500 error | Check `storage/logs/laravel.log` and `/var/log/nginx/error.log`. |
 | "Welcome to nginx" page | The default site is still enabled. `sudo rm /etc/nginx/sites-enabled/default` and reload. |
 | FileZilla shows only `/var` | You are connected to the wrong server (for example the DBServer). Check the host IP. |
