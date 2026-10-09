@@ -109,4 +109,8 @@ A full step-by-step guide to a two-server Laravel setup on Lightsail (App server
 
 ### PostgreSQL point-in-time backups
 
-On the DB server, after `setup.sh`: `sudo bash dbserver/install-backup.sh` sets up pgBackRest with WAL archiving to an encrypted S3 bucket in London, weekly full and daily differential backups, and an hourly monitor. How to restore and the test checklist are in [`dbserver/RESTORE.md`](dbserver/RESTORE.md).
+On the DB server, after `setup.sh`: `sudo bash dbserver/install-backup.sh` sets up pgBackRest with WAL archiving to an encrypted S3 bucket in London, weekly full and daily differential backups, and an hourly monitor. How to restore and the test checklist are in [`dbserver/RESTORE.md`](dbserver/RESTORE.md), and the first test's results are in [`dbserver/restore-test-record.md`](dbserver/restore-test-record.md).
+
+### PostgreSQL TLS
+
+`sudo bash dbserver/enable-tls.sh` creates a private CA and server certificate and turns TLS on. `... enforce` then rejects unencrypted remote connections (do this only after the application uses the CA certificate with `verify-full`), `... check` shows the state, and `... summary` prints the non-secret details to give the application.
