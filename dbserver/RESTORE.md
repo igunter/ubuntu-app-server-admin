@@ -61,6 +61,12 @@ The restored database contains real data and the application settings that send 
 - Block outbound traffic from the instance except what the test needs: no TCP 444 to DBS, no SMTP.
 - Check the app for other outbound integrations (SMS, payments, webhooks, scheduled jobs/queues that fire on start) and disable them **before** starting it. Stop the queue workers and scheduler.
 
+## Scripted restore test
+
+On the live DB server: `sudo bash dbserver/restore-test-prepare.sh` creates a `restore_test` database, inserts and deletes marked rows, and prints the times to restore to.
+
+On a scratch server: `sudo bash dbserver/restore-test.sh` installs PostgreSQL and pgBackRest, restores to the time you give using a read-only key (with `archive-mode=off`, so it can't write to the live repository), and shows the result. Run it once for the time when the rows existed (expect 5) and once for after the delete (expect 0).
+
 ## Test checklist (required before production cutover)
 
 Record the date, who ran it, and the timings.
