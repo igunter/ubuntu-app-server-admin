@@ -106,3 +106,7 @@ cd /ubuntu-app-server-admin && sudo git remote set-url origin https://github.com
 ## PHP / Laravel and database servers
 
 A full step-by-step guide to a two-server Laravel setup on Lightsail (App server + DB server, nginx, HTTPS, scheduler, queues, backups, deploys) is in [`appserver/README.md`](appserver/README.md). The PHP stack and holding page scripts are in [`appserver/`](appserver/) and the database installer is in [`dbserver/`](dbserver/).
+
+### PostgreSQL point-in-time backups
+
+On the DB server, after `setup.sh`: `sudo bash dbserver/install-backup.sh` sets up pgBackRest with WAL archiving to an encrypted S3 bucket in London, weekly full and daily differential backups, and an hourly monitor. How to restore and the test checklist are in [`dbserver/RESTORE.md`](dbserver/RESTORE.md).
