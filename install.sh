@@ -12,7 +12,6 @@ apt-get install -y nginx certbot
 
 mkdir -p "$META_DIR" "$DISABLED_ROOT" "$ACME_ROOT"
 chmod 700 "$META_DIR"
-chmod +x "$DIR/webadmin.sh"
 
 cat > "$DISABLED_ROOT/index.html" <<'EOF'
 <!doctype html>
