@@ -135,6 +135,14 @@ EOF
     fi
 }
 
+# The standalone "http2 on;" directive needs nginx 1.25.1+; older versions
+# take http2 as a parameter on the listen line instead.
+nginx_has_http2_directive() {
+    local v
+    v=$(nginx -v 2>&1 | sed -n 's|.*nginx/\([0-9.]*\).*|\1|p')
+    [[ -n $v && $(printf '%s\n' "$v" 1.25.1 | sort -V | head -n1) == 1.25.1 ]]
+}
+
 render_conf() {
     local logs=/var/log/nginx/$ACCOUNT
     echo "# Managed by webadmin - manual edits will be overwritten."
@@ -154,9 +162,14 @@ render_conf() {
         echo "}"
         echo
         echo "server {"
-        echo "    listen 443 ssl;"
-        echo "    listen [::]:443 ssl;"
-        echo "    http2 on;"
+        if nginx_has_http2_directive; then
+            echo "    listen 443 ssl;"
+            echo "    listen [::]:443 ssl;"
+            echo "    http2 on;"
+        else
+            echo "    listen 443 ssl http2;"
+            echo "    listen [::]:443 ssl http2;"
+        fi
         echo "    server_name $DOMAINS;"
         echo "    access_log $logs.access.log;"
         echo "    error_log  $logs.error.log;"
